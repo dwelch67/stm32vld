@@ -1093,8 +1093,22 @@ int main(int argc, char *argv[]) {
 #define GPIOC_ODR   (GPIOC + 0x0c) // port output data register
 #define LED_BLUE    (1<<8) // pin 8
 #define LED_GREEN   (1<<9) // pin 9
+
+
+    uint32_t io_conf;
+
+    stlink_read_mem32(sl, 0x40021018, 4);
+    io_conf = read_uint32(sl->q_buf, 0);
+    fprintf(stderr, "read = 0x%08x", io_conf);
+
+    io_conf|=1<<4;
+
+    write_uint32(sl->q_buf, io_conf);
+    stlink_write_mem32(sl, 0x40021018, 4);
+
+
     stlink_read_mem32(sl, GPIOC_CRH, 4);
-    uint32_t io_conf = read_uint32(sl->q_buf, 0);
+    io_conf = read_uint32(sl->q_buf, 0);
     fprintf(stderr, "GPIOC_CRH = 0x%08x", io_conf);
 
     // set: general purpose output push-pull, output mode, max speed 10 MHz.
