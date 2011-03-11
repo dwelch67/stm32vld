@@ -3,7 +3,7 @@
 .cpu cortex-m3
 .thumb
 
-.word   0x20001000  /* stack top address */
+.word   0x20002000  /* stack top address */
 .word   _start      /* 1 Reset */
 .word   hang        /* 2 NMI */
 .word   hang        /* 3 HardFault */
@@ -27,17 +27,23 @@
 .thumb_func
 .global _start
 _start:
-    ldr r0,stacktop
-    mov sp,r0 /* in case the vector table is not used */
+    /*ldr r0,stacktop */
+    /*mov sp,r0*/
     bl notmain
     b hang
 
 .thumb_func
 hang:   b .
 
-.align
-stacktop: .word 0x20001000
+/*.align
+stacktop: .word 0x20001000*/
 
+;@-----------------------
+.thumb_func
+.globl PUT16
+PUT16:
+    strh r1,[r0]
+    bx lr
 ;@-----------------------
 .thumb_func
 .globl PUT32

@@ -10,6 +10,8 @@ int notmain ( void )
     volatile unsigned int ra;
     unsigned int rb;
     unsigned int rc;
+    unsigned int rd;
+    unsigned int rx;
 
     ra=GET32(RCCBASE+0x18);
     ra|=1<<4; //enable port C
@@ -25,14 +27,16 @@ int notmain ( void )
     PUT32(GPIOCBASE+0x04,ra);
 
     rb=GET32(GPIOCBASE+0x0C);
-    rc=rb|(3<<8);
     rb&=(~(3<<8));
-    while(1)
+    rc=rb|(1<<8);
+    rd=rb|(2<<8);
+    for(rx=0;;rx++)
     {
+        if(rx&0xF) PUT32(GPIOCBASE+0x0C,rd);
+        else       PUT32(GPIOCBASE+0x0C,rc);
+        for(ra=0;ra<100000;ra++) continue;
         PUT32(GPIOCBASE+0x0C,rb);
-        for(ra=0;ra<1000000;ra++) continue;
-        PUT32(GPIOCBASE+0x0C,rc);
-        for(ra=0;ra<1000000;ra++) continue;
+        for(ra=0;ra<100000;ra++) continue;
     }
     return(0);
 }
