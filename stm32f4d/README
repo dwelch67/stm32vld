@@ -1,0 +1,41 @@
+
+Got my STM32F4DISCOVERY board today from digikey.  I didnt know there
+was a cortex-m with an fpu so I wanted to try it out.  Cost about $20,
+they are giving these things away you might as well get one.
+
+http://www.st.com/internet/evalboard/product/252419.jsp
+
+Under the Design support tab you will want to download the users manual
+
+UM1472: STM32F4DISCOVERY STM32F4 high-performance discovery board
+
+It contains the schematic so we can figure out where the leds and other
+stuff are on the board.
+
+It uses the STM32F407VGT6 part
+
+http://www.st.com/internet/mcu/product/252140.jsp
+
+You are definitely going to need the reference manual under the Design
+Support tab.
+
+RM0090: STM32F405xx, STM32F407xx, STM32F415xx and STM32F417xx advanced
+ARM-based 32-bit MCUs
+
+I hate not having my own tool for this but for the moment I do not.
+The stlink usb thing that the stm32vld used is different for this board
+what they did add though is a micro usb OTG port on the other end.  So
+if you look at the schematic and desolder the zero ohm resistor on
+solder bridge SB16 then it will go into bootloader mode and with a second
+usb cable (mini-b on the stlink side to power it and micro-b on the
+other end) you can use a dfu utility to program the board.  Works on
+ubuntu/linux:
+
+http://gitorious.org/~tormod/unofficial-clones/dfuse-dfu-util
+
+dfu-util -d 0483:df11 -c 1 -i 0 -a 0 -s 0x08000000 -D myprogram.bin
+
+I have a jumper (wire with two female sockets) that I use to short boot0
+and gnd and press reset to run the program, disconnect the jumper and
+press reset to reprogram.  I will probably write my own uart based
+bootloader, for now this is what I am using with this board on linux.
