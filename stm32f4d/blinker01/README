@@ -13,7 +13,6 @@ some leds.
 If this is your first cortex-m3 I hopefully have better information in
 my mbed_samples repo (also at github) look at the first few blinkers.
 
-
 This example is in C with some asm to get things started.  Both gcc
 and llvm's clang are used to create various flavors of binaries from
 the same source.  The code is quite trivial but this hopefully creates

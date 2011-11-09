@@ -28,10 +28,14 @@ int notmain ( void )
 
     for(rx=0;;rx++)
     {
-        PUT32(GPIODBASE+0x18,0xC0003000);
-        for(ra=0;ra<100000;ra++) continue;
-        PUT32(GPIODBASE+0x18,0x3000C000);
-        for(ra=0;ra<100000;ra++) continue;
+        PUT32(GPIODBASE+0x18,0xE0001000);
+        for(ra=0;ra<200000;ra++) continue;
+        PUT32(GPIODBASE+0x18,0xD0002000);
+        for(ra=0;ra<200000;ra++) continue;
+        PUT32(GPIODBASE+0x18,0xB0004000);
+        for(ra=0;ra<200000;ra++) continue;
+        PUT32(GPIODBASE+0x18,0x70008000);
+        for(ra=0;ra<200000;ra++) continue;
     }
     return(0);
 }
