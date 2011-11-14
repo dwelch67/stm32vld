@@ -39,3 +39,8 @@ I have a jumper (wire with two female sockets) that I use to short boot0
 and gnd and press reset to run the program, disconnect the jumper and
 press reset to reprogram.  I will probably write my own uart based
 bootloader, for now this is what I am using with this board on linux.
+
+You are also going to want the TRM for the ARM cortex-m4f core
+
+http://infocenter.arm.com/help/topic/com.arm.doc.ddi0439c/DDI0439C_cortex_m4_r0p1_trm.pdf
+
