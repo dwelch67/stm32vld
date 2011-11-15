@@ -66,11 +66,13 @@ void ClockInit ( void )
 void timdelay ( void )
 {
     unsigned int ra;
+    unsigned int rb;
 
-    for(ra=10254;ra;ra--)
+    rb=GET32(TIM5BASE+0x24);
+    while(1)
     {
-        while((GET16(TIM5BASE+0x24)&0x8000)==0x0000) continue;
-        while((GET16(TIM5BASE+0x24)&0x8000)==0x8000) continue;
+        ra=GET32(TIM5BASE+0x24);
+        if((ra-rb)>=(168000000*4)) break;
     }
 }
 
