@@ -151,7 +151,7 @@ void clock_init ( void )
     }
     PUT32(RCC_CFGR,0x0000D801); //PPRE2 /2 PPRE1 /8 sw=hse
     //slow flash accesses down otherwise it will crash
-    PUT32(FLASH_ACR,0x00000105);
+    PUT32(FLASH_ACR,0x00000005);
     //8MHz HSE, 168MHz pllgen 48MHz pll usb
     //Q 7 P 2 N 210 M 5 vcoin 1 pllvco 336 pllgen 168 pllusb 48
     ra=(7<<24)|(1<<22)|(((2>>1)-1)<<16)|(210<<6)|(5<<0);
@@ -265,25 +265,43 @@ int notmain ( void )
     uart_string("\nHello World!\n");
 
 
-    beg=GET32(TIM5BASE+0x24);
-    run_tea_test();
-    end=GET32(TIM5BASE+0x24);
-    end-=beg;
-    hexstring(end,1);
-
-
-    beg=GET32(TIM5BASE+0x24);
-    run_tea_test();
-    end=GET32(TIM5BASE+0x24);
-    end-=beg;
-    hexstring(end,1);
-
-
+    //no caches or prefetch
     ra=GET32(FLASH_ACR);
     ra&=~(0x1F00);
     PUT32(FLASH_ACR,ra);
-    PUT32(FLASH_ACR,ra|0x1800);
-    PUT32(FLASH_ACR,ra);
+
+    beg=GET32(TIM5BASE+0x24);
+    run_tea_test();
+    end=GET32(TIM5BASE+0x24);
+    end-=beg;
+    hexstring(end,1);
+
+    beg=GET32(TIM5BASE+0x24);
+    run_tea_test();
+    end=GET32(TIM5BASE+0x24);
+    end-=beg;
+    hexstring(end,1);
+
+    //prefetch only
+    ra=GET32(FLASH_ACR);
+    ra&=~(0x1F00);
+    PUT32(FLASH_ACR,ra|0x100);
+
+    beg=GET32(TIM5BASE+0x24);
+    run_tea_test();
+    end=GET32(TIM5BASE+0x24);
+    end-=beg;
+    hexstring(end,1);
+
+    beg=GET32(TIM5BASE+0x24);
+    run_tea_test();
+    end=GET32(TIM5BASE+0x24);
+    end-=beg;
+    hexstring(end,1);
+
+    //Try instruction cache only
+    ra=GET32(FLASH_ACR);
+    ra&=~(0x1F00);
     PUT32(FLASH_ACR,ra|0x200);
 
     beg=GET32(TIM5BASE+0x24);
@@ -292,18 +310,15 @@ int notmain ( void )
     end-=beg;
     hexstring(end,1);
 
-
     beg=GET32(TIM5BASE+0x24);
     run_tea_test();
     end=GET32(TIM5BASE+0x24);
     end-=beg;
     hexstring(end,1);
 
+    //Try data cache only
     ra=GET32(FLASH_ACR);
     ra&=~(0x1F00);
-    PUT32(FLASH_ACR,ra);
-    PUT32(FLASH_ACR,ra|0x1800);
-    PUT32(FLASH_ACR,ra);
     PUT32(FLASH_ACR,ra|0x400);
 
     beg=GET32(TIM5BASE+0x24);
@@ -312,13 +327,14 @@ int notmain ( void )
     end-=beg;
     hexstring(end,1);
 
-
     beg=GET32(TIM5BASE+0x24);
     run_tea_test();
     end=GET32(TIM5BASE+0x24);
     end-=beg;
     hexstring(end,1);
 
+    //Try both instruction and data cache
+    //not sure if this is how you invalidate and/or reset the caches
     ra=GET32(FLASH_ACR);
     ra&=~(0x1F00);
     PUT32(FLASH_ACR,ra);
@@ -332,13 +348,13 @@ int notmain ( void )
     end-=beg;
     hexstring(end,1);
 
-
     beg=GET32(TIM5BASE+0x24);
     run_tea_test();
     end=GET32(TIM5BASE+0x24);
     end-=beg;
     hexstring(end,1);
 
+    //instruction cache, data cache and prefetch
     ra=GET32(FLASH_ACR);
     ra&=~(0x1F00);
     PUT32(FLASH_ACR,ra);
@@ -351,7 +367,6 @@ int notmain ( void )
     end=GET32(TIM5BASE+0x24);
     end-=beg;
     hexstring(end,1);
-
 
     beg=GET32(TIM5BASE+0x24);
     run_tea_test();

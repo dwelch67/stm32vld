@@ -2,6 +2,141 @@
 See the README one level up about where to find the reference manual
 for the stm32f4 and schematics for the board.
 
-This is derived from uart02
+This is derived from uart02.
 
-Work in progress....
+This is a benchmark both comparing compilers gcc and llvm, llvm versions
+2.9 vs 3.0.  Thumb instruction set with and without thumb2 extensions.
+As well as the hardware featches instruction cache, data cache, and
+prefetch.  Benchmarks are what they are, you can manipulate them to make
+whatever you want win or lose or whatever, this is more of something
+interesting to feed this hardware to see what the hardware features
+do with it.
+
+The code under test uses the eXtended TEA cipher.
+http://en.wikipedia.org/wiki/XTEA
+
+The GCC used is from Codesourcery:
+
+arm-none-eabi-gcc (Sourcery G++ Lite 2011.03-42) 4.5.2
+Copyright (C) 2010 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+LLVM is pulled from the repos, version 2.9 and the released any day/minute
+now version 3.0.  Llvm compiles were with and without optimization.
+
+1 bench01.gcc.thumb.bin
+2 bench01.gcc.thumb2.bin
+3 bench01.clang.thumb.norm.bin
+4 bench01.clang.thumb.opt.bin
+5 bench01.clang.thumb2.norm.bin
+6 bench01.clang.thumb2.opt.bin
+
+0002F442 0002C65C 0004E16A 000375A4 00049C2A 00030B80 nothing
+0002F444 0002C65C 0004E16A 000375A6 00049C2A 00030B80 nothing
+00028AE2 0001FB38 0004ABE8 00033AA2 0003E202 000233DA prefetch
+00028AE2 0001FB3A 0004ABE8 00033AA2 0003E202 000233DA prefetch
+000251C2 00019EAA 00041C32 0002AD2C 000372B6 00018832 icache
+000251C0 00019EA0 00041C1E 0002AD1A 00037296 00018814 icache
+0002EEEA 0002BE62 0004DA2C 00036B86 00049C2A 00030B7E dcache
+0002EEE8 0002BE64 0004DA2A 00036B84 00049C2A 00030B80 dcache
+00024CC6 0001974E 000415F6 0002A46E 000372B6 00018832 icache+dcache
+00024CC6 00019748 000415E0 0002A45C 00037296 00018816 icache+dcache
+00024CB6 00019734 000415F6 0002A46A 000372AA 00018826 all three
+00024CA0 0001972A 000415E0 0002A45C 00037298 00018814 all three
+
+1 llvm2.9 thumb
+2 llvm2.9 thumb2
+3 llvm3.0 thumb
+4 llvm3.0 thumb2
+
+000375A4 00030B80 00037622 00031C66 nothing
+000375A6 00030B80 00037622 00031C68 nothing
+00033AA2 000233DA 00032A5E 00025620 prefetch
+00033AA2 000233DA 00032A5E 0002561E prefetch
+0002AD2C 00018832 0002C72A 00018034 icache
+0002AD1A 00018814 0002C718 00018018 icache
+00036B86 00030B7E 00036986 00031C68 dcache
+00036B84 00030B80 00036982 00031C66 dcache
+0002A46E 00018832 0002BD28 00018034 icache+dcache
+0002A45C 00018816 0002BD1A 00018018 icache+dcache
+0002A46A 00018826 0002BD26 00018026 all three
+0002A45C 00018814 0002BD18 00018018 all three
+
+So llvm is posting the best scores for this test.  And llvm3.0 is a
+touch faster code than llvm2.9.
+
+Interestingly by adding nops or other data in vectors.s such that the
+whole program slides a little (changes where cache line boundaries
+are relative to the code, plus other effects) does not affect the
+performance with icache+dcache+prefetch enabled.  Actually doesnt affect
+results for any of the icache enabled runs.  Interesting...
+
+
+encipher: llvm2.9 vs 3.0
+
+push    {r4, r5, r6, r7, lr}       push {r4, r5, r6, r7, lr}
+ldmia.w r1, {r3, ip}               ldmia.w  r1, {ip, lr}
+cbz r0, 80000be <encipher+0x52>    cbz  r0, 80000be <encipher+0x52>
+movw    r4, #31161  ; 0x79b9       movw r4, #31161  ; 0x79b9
+mov.w   lr, #0                     movs r3, #0
+movs    r5, #12                    movs r5, #12
+movt    r4, #40503  ; 0x9e37       movt r4, #40503  ; 0x9e37
+mov.w   r6, ip, lsl #4             mov.w    r6, lr, lsl #4
+and.w   r7, lr, #3                 and.w    r7, r3, #3
+subs    r0, #1                     subs r0, #1
+eor.w   r6, r6, ip, lsr #5         eor.w    r6, r6, lr, lsr #5
+ldr.w   r7, [r2, r7, lsl #2]       ldr.w    r7, [r2, r7, lsl #2]
+add r6, ip                         add.w    r7, r7, r3
+add r7, lr                         add  r6, lr
+add lr, r4                         add.w    r3, r3, r4
+eor.w   r6, r6, r7                 eor.w    r6, r6, r7
+add.w   r3, r3, r6                 and.w    r7, r5, r3, lsr #9
+and.w   r7, r5, lr, lsr #9         add  ip, r6
+mov.w   r6, r3, lsl #4             ldr  r7, [r2, r7]
+ldr r7, [r2, r7]                   mov.w    r6, ip, lsl #4
+eor.w   r6, r6, r3, lsr #5         add.w    r7, r7, r3
+add r7, lr                         eor.w    r6, r6, ip, lsr #5
+add.w   r6, r6, r3                 add  r6, ip
+eor.w   r6, r6, r7                 eor.w    r6, r6, r7
+add ip, r6                         add  lr, r6
+bne.n   8000082 <encipher+0x16>    bne.n    8000080 <encipher+0x14>
+stmia.w r1, {r3, ip}               stmia.w  r1, {ip, lr}
+pop {r4, r5, r6, r7, pc}           pop  {r4, r5, r6, r7, pc}
+
+
+decipher llvm2.9 vs 3.0
+
+push    {r4, r5, r6, r7, lr}       push {r4, r5, r6, r7, lr}
+ldmia.w r1, {r3, ip}               ldmia.w  r1, {ip, lr}
+cbz r0, 800011e <decipher+0x5a>    cbz  r0, 8000122 <decipher+0x5e>
+movw    lr, #31161  ; 0x79b9       movw r3, #31161  ; 0x79b9
+movw    r5, #34375  ; 0x8647       movw r5, #34375  ; 0x8647
+movs    r4, #12                    movs r4, #12
+movt    lr, #40503  ; 0x9e37       movt r3, #40503  ; 0x9e37
+movt    r5, #25032  ; 0x61c8       movt r5, #25032  ; 0x61c8
+mul.w   lr, lr, r0                 muls r3, r0
+lsls    r6, r3, #4                 mov.w    r6, ip, lsl #4
+and.w   r7, r4, lr, lsr #9         and.w    r7, r4, r3, lsr #9
+subs    r0, #1                     subs r0, #1
+eor.w   r6, r6, r3, lsr #5         eor.w    r6, r6, ip, lsr #5
+ldr r7, [r2, r7]                   ldr  r7, [r2, r7]
+add.w   r6, r6, r3                 add.w    r7, r7, r3
+add r7, lr                         add  r6, ip
+add lr, r5                         add.w    r3, r3, r5
+eor.w   r6, r6, r7                 eor.w    r6, r6, r7
+sub.w   ip, ip, r6                 and.w    r7, r3, #3
+and.w   r7, lr, #3                 sub.w    lr, lr, r6
+mov.w   r6, ip, lsl #4             ldr.w    r7, [r2, r7, lsl #2]
+ldr.w   r7, [r2, r7, lsl #2]       mov.w    r6, lr, lsl #4
+eor.w   r6, r6, ip, lsr #5         add.w    r7, r7, r3
+add r7, lr                         eor.w    r6, r6, lr, lsr #5
+add r6, ip                         add  r6, lr
+eor.w   r6, r6, r7                 eor.w    r6, r6, r7
+sub.w   r3, r3, r6                 sub.w    ip, ip, r6
+bne.n   80000e2 <decipher+0x1e>    bne.n    80000e0 <decipher+0x1c>
+stmia.w r1, {r3, ip}               stmia.w  r1, {ip, lr}
+pop {r4, r5, r6, r7, pc}           pop  {r4, r5, r6, r7, pc}
+
+The code under test is more than just these functions but loops that
+encipher and decipher and compare.
