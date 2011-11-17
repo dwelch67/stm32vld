@@ -3,7 +3,7 @@
 .cpu cortex-m3
 .thumb
 
-.word   0x20002000  /* stack top address */
+.word   0x20020000  /* stack top address */
 .word   _start      /* 1 Reset */
 .word   hang        /* 2 NMI */
 .word   hang        /* 3 HardFault */

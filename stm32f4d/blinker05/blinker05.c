@@ -1,12 +1,13 @@
+
 //http://gitorious.org/~tormod/unofficial-clones/dfuse-dfu-util
 //dfu-util -d 0483:df11 -c 1 -i 0 -a 0 -s 0x08000000 -D flashblinker.bin
 
+//-------------------------------------------------------------------
 void PUT32 ( unsigned int, unsigned int );
 void PUT16 ( unsigned int, unsigned int );
 unsigned int GET32 ( unsigned int );
 unsigned int GET16 ( unsigned int );
-
-
+//-------------------------------------------------------------------
 #define RCCBASE   0x40023800
 #define RCC_CR    (RCCBASE+0x00)
 #define RCC_PLLCFGR (RCCBASE+0x04)
@@ -14,27 +15,17 @@ unsigned int GET16 ( unsigned int );
 #define GPIODBASE 0x40020C00
 #define TIM5BASE  0x40000C00
 #define FLASH_ACR  0x40023C00
-
+//-------------------------------------------------------------------
 volatile unsigned int intcounter;
-
+//-------------------------------------------------------------------
+// CAREFUL, THIS IS AN INTERRUPT HANDLER
 void tim5_handler ( void )
 {
     intcounter++;
-    switch(intcounter&0x3)
-    {
-        case 2: PUT32(GPIODBASE+0x18,0xE0001000); break;
-        case 3: PUT32(GPIODBASE+0x18,0xD0002000); break;
-        case 0: PUT32(GPIODBASE+0x18,0xB0004000); break;
-        case 1: PUT32(GPIODBASE+0x18,0x70008000); break;
-    }
-
-//    PUT32(TIM5BASE+0x10,0);
-    PUT32(0xE000E284,0x00040000);
-    PUT32(0xE000E280,0xFFFFFFFF);
-    PUT32(0xE000E284,0xFFFFFFFF);
-    PUT32(0xE000E288,0xFFFFFFFF);
+    PUT32(TIM5BASE+0x10,0x00000000);
 }
-
+// CAREFUL, THIS IS AN INTERRUPT HANDLER
+//-------------------------------------------------------------------
 void ClockInit ( void )
 {
     unsigned int ra;
@@ -80,30 +71,15 @@ void ClockInit ( void )
     {
         if((GET32(RCC_CFGR)&0xC)==0x8) break;
     }
- }
-
-
-void timdelay ( void )
-{
-    unsigned int ra;
-    unsigned int rb;
-
-    rb=GET32(TIM5BASE+0x24);
-    while(1)
-    {
-        ra=GET32(TIM5BASE+0x24);
-        if((ra-rb)>=(168000000*4)) break;
-    }
 }
-
-
+//-------------------------------------------------------------------
 int notmain ( void )
 {
     unsigned int ra;
-    //unsigned int rx;
+    unsigned int lastcount;
+    unsigned int newcount;
 
     ClockInit();
-
 
     ra=GET32(RCCBASE+0x30);
     ra|=1<<3; //enable port D
@@ -113,7 +89,7 @@ int notmain ( void )
     ra|=1<<3; //enable TIM5
     PUT32(RCCBASE+0x40,ra);
 
-    //d12 = d15 output
+    //d12 = d15 led outputs
     ra=GET32(GPIODBASE+0x00);
     ra&=0x00FFFFFF;
     ra|=0x55000000;
@@ -123,36 +99,37 @@ int notmain ( void )
     ra&=0xFFFF0FFF;
     PUT32(GPIODBASE+0x04,ra);
 
-
+    //start with green led
     PUT32(GPIODBASE+0x18,0xE0001000);
 
-
+    //setup timer
     PUT32(TIM5BASE+0x00,0x00000000);
-    PUT32(TIM5BASE+0x2C,168000000); //auto reload
-    PUT32(TIM5BASE+0x0C,0x00000001);
-    PUT32(TIM5BASE+0x10,0x00000000);
+    PUT32(TIM5BASE+0x2C,168000000/4); //auto reload
+    PUT32(TIM5BASE+0x0C,0x00000001); //interrupt enable
+    PUT32(TIM5BASE+0x10,0x00000000); //clear interrupt
     PUT32(TIM5BASE+0x00,0x00000001);
 
-
     intcounter = 0;
+    //enable interrupt 50 TIM5
     PUT32(0xE000E104,0x00040000);
 
-
-
-    //while(1)
-    //{
-        //PUT32(GPIODBASE+0x18,0xE0001000);
-        //while(1)
-        //{
-            //if(GET32(TIM5BASE+0x10)&1) break;
-        //}
-        //PUT32(TIM5BASE+0x10,0);
-        //PUT32(GPIODBASE+0x18,0xF0000000);
-        //while(1)
-        //{
-            //if(GET32(TIM5BASE+0x10)&1) break;
-        //}
-        //PUT32(TIM5BASE+0x10,0);
-    //}
+    lastcount = intcounter;
+    while(1)
+    {
+        newcount=intcounter;
+        if(lastcount!=newcount)
+        {
+            switch(lastcount&0x3)
+            {
+                case 0: PUT32(GPIODBASE+0x18,0xE0001000); break;
+                case 1: PUT32(GPIODBASE+0x18,0xD0002000); break;
+                case 2: PUT32(GPIODBASE+0x18,0xB0004000); break;
+                case 3: PUT32(GPIODBASE+0x18,0x70008000); break;
+            }
+            lastcount=newcount;
+        }
+    }
     return(0);
 }
+//-------------------------------------------------------------------
+//-------------------------------------------------------------------
