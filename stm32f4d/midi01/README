@@ -21,10 +21,10 @@ First look for bytes with the upper bit set, from there you will
 usually have bytes with the lower bit set that go with it.  I saw this
 roland link
 
-http://lib.roland.co.jp/support/en/manuals/res/1811303/CG-8_MIDI_Imple_e2.pdf
+http://media.rolandus.com/manuals/TD-12_MI.pdf
+http://media.rolandus.com/manuals/TD-20_MI.pdf
 
-which is probably not for drums specifically but good info.  My drum
-computer is a Roland TD-9.
+I have a TD-9 and the messages are similar and/or the same.
 
 Oh, so this stm324f chip has many uarts.  Uart2 is hooked up to the
 midi breakout board.  RX on the midi breakout board.  And uart 3 to the
