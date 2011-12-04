@@ -3,6 +3,8 @@
 //dwelch@dwelch.com
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include "stlink-common.h"
 
 FILE *fp;
@@ -14,6 +16,7 @@ int main ( int argc, char *argv[] )
     unsigned int ra;
     unsigned int rb;
     unsigned int flen;
+    int ret;
 
     if(argc<2)
     {
@@ -27,6 +30,7 @@ int main ( int argc, char *argv[] )
         printf("Error opening file [%s]\n",argv[1]);
         return(1);
     }
+    memset(pdata,0xFF,sizeof(pdata));
     flen=fread(pdata,1,sizeof(pdata),fp);
     flen+=3;
     flen>>=2;
@@ -96,7 +100,35 @@ int main ( int argc, char *argv[] )
 
     stlink_run(sl);
 
+    ret =0;
+
 #endif //LOAD_RAM
+
+#ifdef LOAD_FLASH
+
+    ra=0;
+    rb=0;
+    ret=stlink_write_flash(sl,0x08000000,(unsigned char *)pdata,0x4000);
+    if(ret)
+    {
+        printf("stlink_write_flasin error\n");
+    }
+
+#endif //LOAD_FLASH
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     printf("-- exit_debug_mode\n");
     stlink_exit_debug_mode(sl);
