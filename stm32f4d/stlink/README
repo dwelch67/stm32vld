@@ -12,3 +12,8 @@ stlink2_flash filename.bin
 
 Minimal implementation, loads 0x4000, one flash page, to 0x08000000, if
 your binary is smaller it pads it if longer it clips it.
+
+dummy.bin is a tiny infinite loop program that you can load into the
+flash so that you know that when you run from ram whatever was in flash
+does not mess with clocks or other things.  Your from ram experience is
+more simlar to a run from rom experience.
