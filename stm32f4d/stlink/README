@@ -1,0 +1,13 @@
+
+This is derived from the stlink code here:
+
+https://github.com/texane/stlink
+
+Eventually will have a flash loader, for now, just a ram loader.
+
+stlink2_ram filename.bin
+
+Loads the .bin file to 0x20000000 and starts it.  Stack pointer is set
+for you if you dont want to do it yourself.
+
+

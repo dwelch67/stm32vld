@@ -22,25 +22,36 @@ Support tab.
 RM0090: STM32F405xx, STM32F407xx, STM32F415xx and STM32F417xx advanced
 ARM-based 32-bit MCUs
 
-I hate not having my own tool for this but for the moment I do not.
-The stlink usb thing that the stm32vld used is different for this board
-what they did add though is a micro usb OTG port on the other end.  So
-if you look at the schematic and desolder the zero ohm resistor on
-solder bridge SB16 then it will go into bootloader mode and with a second
-usb cable (mini-b on the stlink side to power it and micro-b on the
-other end) you can use a dfu utility to program the board.  Works on
-ubuntu/linux:
-
-http://gitorious.org/~tormod/unofficial-clones/dfuse-dfu-util
-
-dfu-util -d 0483:df11 -c 1 -i 0 -a 0 -s 0x08000000 -D myprogram.bin
-
-I have a jumper (wire with two female sockets) that I use to short boot0
-and gnd and press reset to run the program, disconnect the jumper and
-press reset to reprogram.  I will probably write my own uart based
-bootloader, for now this is what I am using with this board on linux.
-
 You are also going to want the TRM for the ARM cortex-m4f core
 
 http://infocenter.arm.com/help/topic/com.arm.doc.ddi0439c/DDI0439C_cortex_m4_r0p1_trm.pdf
+
+I derived a command line loader from
+
+https://github.com/texane/stlink
+
+which is a gdbserver for the various stm32 stlink boards.  Mine is
+limited to this board.  You only need the mini-b usb plugged in to use
+the stlink interface, powers the board and communicates with the stlink
+interface.
+
+Another way to load is to remove the zero ohm resistor on solder bridge
+SB16.  SB16 as shipped shorts boot0 to ground.  With boot0 high
+the normal embedded bootloader runs on the stm32f4.  It happens to be a
+dfu based usb bootloader.  You will need the micro-b usb connected as
+well.  this util works on ubuntu:
+
+http://gitorious.org/~tormod/unofficial-clones/dfuse-dfu-util
+
+Power cycle or reset the microcontroller with boot0 floating wait a
+few seconds then
+
+dfu-util -d 0483:df11 -c 1 -i 0 -a 0 -s 0x08000000 -D myprogram.bin
+
+After loading, short boot0 to ground and reset again to run your program
+from flash.  Open boot0 and press reset to try again.
+
+If you leave boot0 tied to ground, it is as if SB16 were connected and
+you can use the stlink interface.
+
 
