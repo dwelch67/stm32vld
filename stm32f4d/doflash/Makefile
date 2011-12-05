@@ -12,13 +12,19 @@ OOPS = -std-compile-opts
 
 all : doflash.gcc.thumb.bin doflash.gcc.thumb2.bin doflash.clang.thumb.norm.bin doflash.clang.thumb.opt.bin doflash.clang.thumb2.norm.bin doflash.clang.thumb2.opt.bin
 
+bintoc : bintoc.c
+	gcc -o bintoc bintoc.c
+
+flashme-bin.c : flashme-bin bintoc
+	./bintoc flashme-bin
+
 vectors.o : vectors.s
 	$(ARMGNU)-as vectors.s -o vectors.o
 
-doflash.gcc.thumb.o : doflash.c
+doflash.gcc.thumb.o : doflash.c flashme-bin.c
 	$(ARMGNU)-gcc $(COPS) -mthumb -c doflash.c -o doflash.gcc.thumb.o
 
-doflash.gcc.thumb2.o : doflash.c
+doflash.gcc.thumb2.o : doflash.c flashme-bin.c
 	$(ARMGNU)-gcc $(COPS) -mthumb -mcpu=cortex-m3 -march=armv7-m -c doflash.c -o doflash.gcc.thumb2.o
 
 doflash.gcc.thumb.bin : memmap vectors.o doflash.gcc.thumb.o
@@ -32,7 +38,7 @@ doflash.gcc.thumb2.bin : memmap vectors.o doflash.gcc.thumb2.o
 	$(ARMGNU)-objcopy doflash.gcc.thumb2.elf doflash.gcc.thumb2.bin -O binary
 
 
-doflash.clang.bc : doflash.c
+doflash.clang.bc : doflash.c flashme-bin.c
 	clang $(LOPS) -c doflash.c -o doflash.clang.bc
 
 doflash.clang.thumb.norm.bin : memmap vectors.o doflash.clang.bc
@@ -79,5 +85,8 @@ clean:
 	rm -f *.bc
 	rm -f *.opt.s
 	rm -f *.norm.s
+	rm -f *.bin.c
+	rm -f flashme-bin.c
+	rm -f bintoc
 
 

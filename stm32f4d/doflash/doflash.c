@@ -1,8 +1,8 @@
 
 //-------------------------------------------------------------------
 //-------------------------------------------------------------------
-//http://gitorious.org/~tormod/unofficial-clones/dfuse-dfu-util
-//dfu-util -d 0483:df11 -c 1 -i 0 -a 0 -s 0x08000000 -D flashblinker.bin
+#define VALIDATE_FLASH
+//#define FLASH_FASTER
 //-------------------------------------------------------------------
 void PUT32 ( unsigned int, unsigned int );
 void PUT16 ( unsigned int, unsigned int );
@@ -40,13 +40,13 @@ unsigned int GET16 ( unsigned int );
 #define FLASH_SR    (FLASH_BASE+0x0C)
 #define FLASH_CR    (FLASH_BASE+0x10)
 #define FLASH_OPTCR (FLASH_BASE+0x14)
-
+//-------------------------------------------------------------------
+//extern const unsigned int rom_size;
+//extern const unsigned int rom_data[];
+#include "flashme-bin.c"
 //-------------------------------------------------------------------
 //PA2 USART2_TX available
 //PA3 USART2_RX available
-
-//PD8 USART3_TX available
-//PD9 USART3_rX available
 //-------------------------------------------------------------------
 void clock_init ( void )
 {
@@ -146,23 +146,72 @@ void uart_string ( const char *s )
         uart_putc(*s);
     }
 }
+//------------------------------------------------------------------------
+unsigned int next_prand ( unsigned int x )
+{
+    if(x&1)
+    {
+        x=x>>1;
+        x=x^0xBF9EC099;
+    }
+    else
+    {
+        x=x>>1;
+    }
+    return(x);
+}
 //-------------------------------------------------------------------
-void timdelay ( void )
+int wait_on_busy_bit ( void )
 {
     unsigned int ra;
-    unsigned int rb;
 
-    rb=GET32(TIM5BASE+0x24);
     while(1)
     {
-        ra=GET32(TIM5BASE+0x24);
-        if((ra-rb)>=((168000000*2)/8)) break;
+        ra=GET32(FLASH_SR);
+        if(ra&0x000000F2)
+        {
+            hexstring(0xBADBAD,0); hexstring(ra,1);
+            return(1);
+        }
+        if(ra&0x00010000) continue;
+        break;
     }
+    return(0);
+}
+//-------------------------------------------------------------------
+int erase_sector ( unsigned int addr )
+{
+    unsigned int sectnum;
+    //might not be a sector, they are not uniform for this part
+    switch(addr)
+    {
+        case 0x08000000: sectnum=0; break;
+        case 0x08004000: sectnum=1; break;
+        case 0x08008000: sectnum=2; break;
+        case 0x0800C000: sectnum=3; break;
+        case 0x08010000: sectnum=4; break;
+        //this code is limited to 0x20000 bytes for data and flash
+        //program cannot get to 0x08020000
+        default: return(0); //this is not an error, code designed for this
+    }
+    PUT32(FLASH_CR,0x00000002|(sectnum<<3));
+    PUT32(FLASH_CR,0x00010002|(sectnum<<3));
+    if(wait_on_busy_bit()) return(1);
+    //erase_sector actually needs to be called before writing to any
+    //flash so that it can be left in program mode:
+    //why doesnt x64 mode work?  setting for x32
+    PUT32(FLASH_CR,0x00000200);
+    PUT32(FLASH_CR,0x00000201);
+    return(0);
 }
 //-------------------------------------------------------------------
 int notmain ( void )
 {
     unsigned int ra;
+    unsigned int rb;
+    unsigned int rc;
+    unsigned int prand;
+    unsigned int errors;
     volatile unsigned int beg,end;
 
     clock_init();
@@ -175,68 +224,111 @@ int notmain ( void )
     PUT32(TIM5BASE+0x2C,0xFFFFFFFF);
     PUT32(TIM5BASE+0x00,0x00000001);
 
-
     uart_string("\nHello World!\n");
     for(ra=0x00;ra<0x20;ra+=4) hexstring(GET32(0x08000000+ra),1);
 
-    //wait for busy bit?
-
+    //wait for no busy bit before touching FLASH_CR
     hexstring(GET32(FLASH_SR),1);
+    wait_on_busy_bit();
     ra=GET32(FLASH_CR);
     hexstring(ra,1);
     if(ra&0x80000000)
     {
+        //if locked, unlock
         PUT32(FLASH_KEYR,0x45670123);
         PUT32(FLASH_KEYR,0xCDEF89AB);
     }
     hexstring(GET32(FLASH_CR),1);
 
-    PUT32(FLASH_CR,0x00000002);
-    PUT32(FLASH_CR,0x00010002);
-
-    hexstring(GET32(FLASH_SR),1);
-
-    while(1)
-    {
-        if((GET32(FLASH_SR)&0x00010000)==0) break;
-    }
-
-    hexstring(GET32(FLASH_SR),1);
-
-    for(ra=0x00;ra<0x20;ra+=4) hexstring(GET32(0x08000000+ra),1);
-
-
     beg=GET32(TIM5BASE+0x24);
-
-    PUT32(FLASH_CR,0x00000200); //why doesnt 64 bit mode work?
-    PUT32(FLASH_CR,0x00000201);
-    for(ra=0x0000;ra<0x4000;ra+=4)
+    //choose start value so that erase_sector() is called on first pass
+    if(rom_size==0)
     {
-        PUT32(0x08000000+ra,ra);
-if(0) //inside
-{
-        while(1)
+        prand=0xAABBCCDD;
+        for(ra=0;ra<0x10000;ra+=4)
         {
-            if((GET32(FLASH_SR)&0x00010000)==0) break;
+            rb=0x08000000|ra;
+            if((rb&0xFFF)==0) erase_sector(rb);
+            if(ra==0) continue; //dont crash it with something that resembles a real instruction
+            prand=next_prand(prand);
+            PUT32(rb,prand);
+#ifndef FLASH_FASTER
+            if(wait_on_busy_bit()) return(1);
+#endif
         }
-}
+#ifdef FLASH_FASTER
+        if(wait_on_busy_bit()) return(1);
+#endif
     }
-if(1) //or outside
-{
-    while(1)
+    else
     {
-        if((GET32(FLASH_SR)&0x00010000)==0) break;
+        for(ra=0;ra<rom_size;ra++)
+        {
+            rb=0x08000000|(ra<<2);
+            if((rb&0xFFF)==0) erase_sector(rb);
+            if(rom_data[ra]==0xFFFFFFFF) continue;
+            PUT32(rb,rom_data[ra]);
+#ifndef FLASH_FASTER
+            if(wait_on_busy_bit()) return(1);
+#endif
+        }
+#ifdef FLASH_FASTER
+        if(wait_on_busy_bit()) return(1);
+#endif
     }
-}
-    hexstring(GET32(FLASH_SR),1);
-
+    //lock flash
+    PUT32(FLASH_CR,0x80000000);
     end=GET32(TIM5BASE+0x24);
+    hexstring(0x11111111,1);
     hexstring(beg,1);
     hexstring(end,1);
     hexstring(end-beg,1);
-
+    hexstring(0x22222222,1);
     for(ra=0x00;ra<0x20;ra+=4) hexstring(GET32(0x08000000+ra),1);
+#ifdef VALIDATE_FLASH
+    if(rom_size==0)
+    {
+        prand=0xAABBCCDD;
+        errors=0;
+        for(ra=0;ra<0x10000;ra+=4)
+        {
+            rb=0x08000000|ra;
+            if(ra==0) continue;
+            prand=next_prand(prand);
+            rc=GET32(rb);
+            if(rc!=prand)
+            {
+                errors++;
+                if(errors<20)
+                {
+                    hexstring(rb,0); hexstring(rc,0); hexstring(prand,1);
+                }
+            }
+        }
+    }
+    else
+    {
+        errors=0;
+        for(ra=0;ra<rom_size;ra++)
+        {
+            rb=0x08000000|(ra<<2);
+            rc=GET32(rb);
+            if(rc!=rom_data[ra])
+            {
+                errors++;
+                if(errors<20)
+                {
+                    hexstring(rb,0); hexstring(rc,0); hexstring(rom_data[ra],1);
+                }
+            }
+        }
+    }
+    hexstring(errors,1);
+    if(errors) hexstring(0xBADBAD,1);
 
+#endif
+    hexstring(0x12345678,1);
+    uart_string("\nDone.\n");
     return(0);
 }
 //-------------------------------------------------------------------
